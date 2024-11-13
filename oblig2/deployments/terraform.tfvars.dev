@@ -1,0 +1,3 @@
+environment = "dev"
+location    = "westeurope"
+rgname      = "rg-dev-001"
