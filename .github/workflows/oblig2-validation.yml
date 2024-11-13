@@ -1,12 +1,9 @@
 name: Terraform Code Validation
 
 on:
-  pull_request:
-    branches:
-      - 'feature/*'  # Feature branches
   push:
-    branches:
-      - 'feature/*'  # Feature branches
+    branches-ignore:
+      - main
 
 jobs:
   validate:
