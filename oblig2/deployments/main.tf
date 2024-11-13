@@ -4,7 +4,7 @@ terraform {
         source  = "hashicorp/azurerm"
         version = "4.3.0"
         }
-    }
+    } #test
 
     backend "azurerm" {
         resource_group_name  = "rg-backend-sd"
