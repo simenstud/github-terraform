@@ -1,7 +1,7 @@
 variable "saname" {
     type        = string
     description = "The name of the storage account"
-    default     = "sa-demo-001"
+    default     = "sasd"
 }
 
 variable "rgname" {
@@ -14,4 +14,10 @@ variable "location" {
     type = string
     description = "The location/region of the resource group"
     default = "westeurope"
+}
+
+variable "scname" {
+    type = string
+    description = "Name of the storage container"
+    default = "sc-demo-001"
 }
