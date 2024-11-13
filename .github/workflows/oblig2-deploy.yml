@@ -1,49 +1,100 @@
-name: Terraform Deploy
+name: Deploy infrastructure
 
 on:
   push:
     branches:
-      - 'dev'
-      - 'staging'
-      - 'prod'
+      - 'main'
 
 env:
-  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
-  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
-  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  WORKING_DIR: ./deployments
+  TERRAFORM_VERSION: 4.3.0
 
 jobs:
-  terraform:
-    name: Terraform Plan and Apply
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./deployments  # Adjust if needed
+  # Job for deploying to Dev
+  deploy_dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v1
+        uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.3.0  # Specify your version
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
 
-      - name: Terraform Init
-        run: terraform init -backend-config="path/to/remote/state"
+      - name: Terraform init for Dev
+        run: terraform init
+        working-directory: ${{ env.WORKING_DIR }}
 
-      - name: Terraform Plan
-        id: plan
-        run: terraform plan -var-file="terraform.tfvars.${{ github.ref_name }}"
+      - name: Select Dev workspace
+        run: terraform workspace select dev || terraform workspace new dev
+        working-directory: ${{ env.WORKING_DIR }}
 
-      - name: Terraform Apply
-        if: github.ref_name != 'prod'
-        run: terraform apply -auto-approve -var-file="terraform.tfvars.${{ github.ref_name }}"
+      - name: Terraform apply to Dev
+        run: terraform apply -auto-approve -var-file="terraform.tfvars.dev"
+        working-directory: ${{ env.WORKING_DIR }}
+      
+  # Job for deploying to Staging
+  deploy_staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-22.04
 
-      # For prod environment: manual approval
-      - name: Terraform Apply to Production
-        if: github.ref_name == 'prod'
-        run: terraform apply -var-file="terraform.tfvars.prod"
-        env:
-          TF_VAR_approval: ${{ github.event.workflow_dispatch.inputs.approval }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform init for Staging
+        run: terraform init
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Select Staging workspace
+        run: terraform workspace select staging || terraform workspace new staging
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Terraform apply to Staging
+        run: terraform apply -auto-approve -var-file="terraform.tfvars.staging"
+        working-directory: ${{ env.WORKING_DIR }}
+
+  # Job for deploying to Prod
+  deploy_prod:
+    name: Deploy to Prod
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform init for Prod
+        run: terraform init
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Select Prod workspace
+        run: terraform workspace select prod || terraform workspace new prod
+        working-directory: ${{ env.WORKING_DIR }}
+
+      - name: Terraform apply to Prod (with approval)
+        if: github.event_name == 'push'
+        uses: hmarr/auto-approve-action@v2
+        with:
+          approval_type: 'require-review'
+
+      - name: Terraform apply to Prod
+        if: github.event.review.state == 'approved'
+        run: terraform apply -auto-approve -var-file="terraform.tfvars.prod"
+        working-directory: ${{ env.WORKING_DIR }}
